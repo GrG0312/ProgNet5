@@ -12,6 +12,8 @@
 
 A parser extension will be created to accept TCP as a valid protocol. The header will contain the standard TCP fields. 
 
+---
+
 ### 2. Connection State Implementation in the Data Plane
 
 Two arrays will be created to track active connections:
@@ -23,11 +25,15 @@ A flow can be identified by hashing a 4-piece tuple value. The hash-result modul
 
 The tuple's values are: `{source_ip, dest_ip, source_port, dest_port}`
 
+---
+
 ### 3. The Handshake Initiation
 
 The data plane won't generate **SYN-ACK** packages directly. Once a TCP packet with the SYN flag arrived, the switch will forward a digest message containing the connection 4-tuple and the initial sequence number to a C#[^2] controller. The controller then constructs and injects the SYN-ACK response using the **PacketOut** mechanism, then writes the updated flow state into the registers using P4Runtime write requests.
 
 [^2] *Usage of C# is possible because the P4Runtime protocol which the switch uses to communicate is a gRPC-based protocol, and any language that has gRPC support can be used to create the controller object.*
+
+---
 
 ### 4. Fast-Path Acknowledgements
 
@@ -43,11 +49,15 @@ The process of handling the incoming data segments on flow *f* is:
 3. If they (the packet numbers) don't match:
     - Drop the packet.
 
+---
+
 ### 5. Teardown of the Connection
 
 The teardown begins when a packet with the **FIN** flag arrives for a flow with `ESTABLISHED` state. The switch will send a digest message to the C# controller again. The controller transitions the flow state to `CLOSED` by clearing the register entry using a P4Runtime write request and injects a FIN-ACK packet.
 
 When the data plane recieves a packet belonging to a closed flow, it drops the packet.
+
+---
 
 ### 6. C# Controller Functionality
 
@@ -60,9 +70,13 @@ According to what was previously discussed, the controller will perform two main
 
 The controller is going to use the `P4Runtime.NET` library to communicate with the switch.
 
+---
+
 ### 7. Traffic Sink
 
 A basic program will be running in the recieving host bound to the listening port, which is going to discard the recieved data. It is going to exist only to consume bytes so that the host kernel will not interfere with RST packets.
+
+---
 
 ### 8. Constraints of the solution
 
