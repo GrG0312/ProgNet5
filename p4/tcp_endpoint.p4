@@ -50,7 +50,7 @@ header tcp_t {
 
     bit<1> nonceSum;
     bit<1> congestionWindowReduced; // indicates ECE signal recieve, lowered transmission rate
-    bit<1> ecn_echo; // ECE, network is congested
+    bit<1> ecnEcho; // ECE, network is congested
     bit<1> urgent; // process data immediately, UPF is valid
 
     bit<1> syn; // connection init
@@ -74,16 +74,15 @@ struct local_metadata_t {
     // We use registers for state, so no custom metadata needed
 }
 
-parser MyParser(packet_in packet, 
+parser PacketParser(packet_in packet, 
                 out parsed_headers_t headers, 
                 inout local_metadata_t localMetadata,
                 inout standard_metadata_t standardMetadata) {
 
     state start {
         packet.extract(headers.ethernet);
-
         // Only interested in IPv4 for TCP processing
-        transition select(headers.ethernet.etherType) {
+        transition select(headers.ethernet.ethernetType) {
             0x0800: parse_ipv4_header; // go to parse_ipv4_header state (next)
             default: accept;
         }
@@ -91,7 +90,6 @@ parser MyParser(packet_in packet,
 
     state parse_ipv4_header {
         packet.extract(headers.ipv4);
-
         // Only process TCP protocol
         transition select(headers.ipv4.protocol) {
             6: parse_tcp_header; // go to next
@@ -111,9 +109,7 @@ control IngressPorcessing(
     inout standard_metadata_t standardMetadata) {
 
     /*
-
     REGISTERS: persistent state across packets, indexed by flowhash to track CS
-
     connectionState: tracks TCP state / flow
         0 = CLOSED // automatically drop packets
         1 = ESTABLISHED // automatically handle ACKs
@@ -122,14 +118,10 @@ control IngressPorcessing(
     register<bit<32>>(1024) expectedSequence;
 
     /*
-
     DIGEST STRUCTS: messages sent to controller (one way)
-
     SYN: controller needs the 4-tuple and init sequence number
     to construct correct ACK number
-
     FIN: controller needs the 4-tuple to identify the register entry to cear
-
     */
     struct syn_notification_t {
         ipv4Addr_t sourceAddress;
@@ -156,7 +148,7 @@ control IngressPorcessing(
         syn_notification_t notif = {
             headers.ipv4.sourceAddress,
             headers.ipv4.destinationAddress,
-            headers.tcp.sourcePort
+            headers.tcp.sourcePort,
             headers.tcp.destinationPort,
             headers.tcp.sequenceNumber
         };
@@ -170,12 +162,12 @@ control IngressPorcessing(
         1. Send FIN-ACK packet
         2. Clear register entries for this flow (CLOSED)
     */
-    action notifyControllerFin(){
+    action notifyControllerFin() {
         fin_notification_t notif = {
             headers.ipv4.sourceAddress,
             headers.ipv4.destinationAddress,
-            headers.tcp.sourcePort
-            headers.tcp.destinationPort,
+            headers.tcp.sourcePort,
+            headers.tcp.destinationPort
         };
         digest(2, notif); // 2 = FIN event
         mark_to_drop(standardMetadata);
@@ -229,6 +221,92 @@ control IngressPorcessing(
             // Read current state
             bit<16> currentState;
             connectionState.read(currentState, flowIndex);
+
+            // Handle SYN flag
+            // SYN=1, ACK=0
+            if (headers.tcp.syn == 1 && 
+                headers.tcp.ack == 0 && 
+                currentState == 0) {
+                    notifyControllerSyn();
+            }
+
+            // Handle data
+            else if(currentState == 1 &&
+                    headers.tcp.syn == 0 &&
+                    headers.tcp.fin == 0) {
+                // Read the expSeqNum
+                bit<32> expectedSequenceNum;
+                expectedSequence.read(expectedSequenceNum, flowIndex);
+                bit<16> ipHeaderBytes = (bit<16>)(headers.ipv4.internetHeaderLength * 4);
+                bit<16> tcpHeaderBytes = (bit<16>)(headers.tcp.dataOffset * 4);
+                bit<16> payloadLength = headers.ipv4.totalLength - ipHeaderBytes - tcpHeaderBytes;
+                // Verify sequence number
+                if (headers.tcp.sequenceNumber == expectedSequenceNum) {
+                    expectedSequence.write(flowIndex, expectedSequenceNum + payloadLength);
+                    generateAck(payloadLength);
+                    standardMetadata.egress_spec = 2;
+                } else {
+                    // Mismatch, drop packet
+                    mark_to_drop(standardMetadata);
+                }
+            }
+
+            // Handle FIN
+            else if (currentState == 1 && headers.tcp.fin == 1) {
+                notifyControllerFin();
+            }
+
+            // Other, default forwarding
+            else {
+                // If client IP
+                if (headers.ipv4.destinationAddress == 0x0A000001) {
+                    standardMetadata.egress_spec = 1;
+                } else { // Otherwise assume server
+                    standardMetadata.egress_spec = 2;
+                }
+            }
         }
     }
 }
+
+control EgressProcessing(
+    inout parsed_headers_t headers,
+    inout local_metadata_t localMetadata,
+    inout standard_metadata_t standardMetadata) {
+    
+    apply { }
+}
+
+control ChecksumVerification(
+    inout parsed_headers_t headers,
+    inout local_metadata_t localMetadata) {
+
+    apply { }
+}
+
+control ChecksumComputation(
+    inout parsed_headers_t headers,
+    inout local_metadata_t localMetadata) {
+
+    apply { }
+}
+
+control PacketDeparser(
+    packet_out packet,
+    in parsed_headers_t headers) {
+    
+    apply {
+        packet.emit(headers.ethernet);
+        packet.emit(headers.ipv4);
+        packet.emit(headers.tcp);
+    }
+}
+
+V1Switch(
+    PacketParser(),
+    ChecksumVerification(),
+    IngressPorcessing(),
+    EgressProcessing(),
+    ChecksumComputation(),
+    PacketDeparser()
+) main;
