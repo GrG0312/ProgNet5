@@ -1,3 +1,2 @@
 ip addr add 10.0.0.1/24 dev eth0
 ip link set eth0 up
-pip install scapy --quiet 2>/dev/null || true

@@ -13,5 +13,4 @@ docker run --rm -v "${root}:/workspace" p4lang/p4c `
 if ($LASTEXITCODE -ne 0) { Write-Host "FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "OK" -ForegroundColor Green
 
-Write-Host ""
 Write-Host "Output: shared/client.json, shared/server.json" -ForegroundColor Cyan
