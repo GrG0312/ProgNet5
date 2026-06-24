@@ -1,0 +1,15 @@
+#!/bin/bash
+ip addr add 10.0.0.2/24 dev eth0
+ip link set eth0 up
+
+pip3 install p4runtime &>/dev/null
+
+simple_switch_grpc --device-id 2 -i 1@eth0 \
+    --p4runtime-server-addr 0.0.0.0:50052 \
+    /shared/server.json &
+
+python3 /shared/bridge.py 50002 50052 &
+
+sleep 2
+chmod +x /shared/ServerController/Server
+/shared/ServerController/Server > /shared/server.log 2>&1 &
