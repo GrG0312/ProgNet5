@@ -28,13 +28,12 @@ const bit<32> CLONE_SESSION = 100;
 // 3 = FIN_SENT     : FIN sent, waiting for FIN-ACK
 // 4 = CLOSED       : final ACK sent, done
 
-// METADATA
+// EGRESS ACTION CODES
 
 // What action the egress pipeline should perform on the cloned packet
-const bit<8> ACTION_SEND_SYN      = 1;
-const bit<8> ACTION_SEND_ACK_FIN  = 2; // Send ACK then immediately FIN (two separate packets)
-const bit<8> ACTION_SEND_ACK      = 3; // Final ACK after FIN-ACK
-const bit<8> ACTION_SEND_FIN      = 4; // Sent as a second clone after ACK
+const bit<8> ACTION_SEND_SYN     = 1;
+const bit<8> ACTION_SEND_ACK_FIN = 2; // ACKs the SYN-ACK and closes simultaneously
+const bit<8> ACTION_SEND_ACK     = 3; // Final ACK after FIN-ACK
 
 // TYPE DEFINITIONS
 
@@ -83,10 +82,11 @@ struct headers_t {
     tcp_t tcp;
 }
 
+// @field_list(1) marks the fields that must be preserved across the clone
 struct metadata_t {
-    bit<8> egress_action; // What the egress block should build
-    bit<32> seq_to_send;
-    bit<32> ack_to_send;
+    @field_list(1) bit<8> egress_action; // What the egress block should build
+    @field_list(1) bit<32> seq_to_send;
+    @field_list(1) bit<32> ack_to_send;
 }
 
 // PARSER
@@ -101,7 +101,7 @@ parser ClientParser(
         pkt.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
             ETHERTYPE_IPV4: parse_ipv4;
-            ETHERTYPE_TRIGGER: accept;   // Trigger packet: no IP/TCP to parse
+            ETHERTYPE_TRIGGER: accept; // Trigger packet: no IP/TCP to parse
             default: accept;
         }
     }
@@ -146,8 +146,8 @@ control ClientIngress(
                 meta.egress_action = ACTION_SEND_SYN;
                 meta.seq_to_send = CLIENT_ISN;
                 meta.ack_to_send = 0;
-                clone3(CloneType.I2E, CLONE_SESSION, meta);
-                connectionState.write(0, 1); // SYN_SENT
+                clone_preserving_field_list(CloneType.I2E, CLONE_SESSION, 1);
+                connectionState.write(0, 1); // --> SYN_SENT
             }
             mark_to_drop(stdmeta);
             return;
@@ -163,23 +163,22 @@ control ClientIngress(
         f_ack = hdr.tcp.flags[4:4];
         f_fin = hdr.tcp.flags[0:0];
 
-        bit<8>  st;
+        bit<8> st;
         connectionState.read(st, 0);
 
-        // SYN-ACK received --> send ACK, then immediately FIN
+        // SYN-ACK received --> send combined FIN+ACK
         // Server's SYN-ACK: flags = SYN(1) + ACK(1), state must be SYN_SENT(1)
         if (f_syn == 1 && f_ack == 1 && f_fin == 0 && st == 1) {
             // Our ACK number = server's seqNo + 1
             bit<32> ack_val = hdr.tcp.seqNo + 1;
             serverSeq.write(0, ack_val);
 
-            // First clone: send ACK (seq = CLIENT_ISN + 1, ack = server_isn + 1)
             meta.egress_action = ACTION_SEND_ACK_FIN;
             meta.seq_to_send = hdr.tcp.ackNo; // Server echoed our ISN + 1 back as ackNo
             meta.ack_to_send = ack_val;
-            clone3(CloneType.I2E, CLONE_SESSION, meta);
+            clone_preserving_field_list(CloneType.I2E, CLONE_SESSION, 1);
 
-            connectionState.write(0, 3); // FIN_SENT (we send ACK + FIN together)
+            connectionState.write(0, 3); // --> FIN_SENT
             mark_to_drop(stdmeta);
             return;
         }
@@ -187,15 +186,12 @@ control ClientIngress(
         // FIN-ACK received --> send final ACK
         // Server's FIN-ACK: flags = FIN(1) + ACK(1), state must be FIN_SENT(3)
         if (f_fin == 1 && f_ack == 1 && st == 3) {
-            bit<32> stored_seq;
-            serverSeq.read(stored_seq, 0);
-
             meta.egress_action = ACTION_SEND_ACK;
             meta.seq_to_send = hdr.tcp.ackNo;
             meta.ack_to_send = hdr.tcp.seqNo + 1;
-            clone3(CloneType.I2E, CLONE_SESSION, meta);
+            clone_preserving_field_list(CloneType.I2E, CLONE_SESSION, 1);
 
-            connectionState.write(0, 4); // CLOSED
+            connectionState.write(0, 4); // --> CLOSED
             mark_to_drop(stdmeta);
             return;
         }
@@ -219,7 +215,7 @@ control ClientEgress(
         hdr.ethernet.dstAddr = SERVER_MAC;
         hdr.ethernet.etherType = ETHERTYPE_IPV4;
 
-        // IPv4  (20-byte header, no options)
+        // IPv4 (20-byte header, no options)
         hdr.ipv4.setValid();
         hdr.ipv4.version      = 4;
         hdr.ipv4.ihl          = 5;
@@ -230,7 +226,7 @@ control ClientEgress(
         hdr.ipv4.fragOffset   = 0;
         hdr.ipv4.ttl          = 64;
         hdr.ipv4.protocol     = 6;
-        hdr.ipv4.checksum     = 0; // Recomputed by TCPComputeChecksum
+        hdr.ipv4.checksum     = 0; // Recomputed by ClientComputeChecksum
         hdr.ipv4.srcAddr      = CLIENT_IP;
         hdr.ipv4.dstAddr      = SERVER_IP;
 
@@ -244,7 +240,7 @@ control ClientEgress(
         hdr.tcp.reserved   = 0;
         hdr.tcp.flags      = tcp_flags;
         hdr.tcp.windowSize = 0xFFFF;
-        hdr.tcp.checksum   = 0; // Recomputed by TCPComputeChecksum
+        hdr.tcp.checksum   = 0; // Recomputed by ClientComputeChecksum
         hdr.tcp.urgentPtr  = 0;
     }
 
@@ -261,9 +257,7 @@ control ClientEgress(
             stdmeta.egress_port = 1;
         }
         else if (meta.egress_action == ACTION_SEND_ACK_FIN) {
-            // Send ACK and FIN as a combined FIN+ACK packet (flags = 0x11)
-            // The client ACKs the SYN-ACK and simultaneously
-            // signals it has no more data to send.
+            // Combined FIN+ACK (flags = 0x11): ACKs the SYN-ACK and closes simultaneously
             build_packet(0x11, meta.seq_to_send, meta.ack_to_send);
             stdmeta.egress_port = 1;
         }

@@ -15,6 +15,7 @@ const bit<32> SERVER_ISN = 32w5000;
 
 const bit<16> ETHERTYPE_IPV4 = 0x0800;
 
+// Clone session ID used to generate outgoing packets
 const bit<32> CLONE_SESSION = 100;
 
 // CONNECTION STATES
@@ -75,10 +76,11 @@ struct headers_t {
     tcp_t tcp;
 }
 
+// @field_list(1) marks the fields that must be preserved across the clone
 struct metadata_t {
-    bit<8> egress_action;
-    bit<32> seq_to_send;
-    bit<32> ack_to_send;
+    @field_list(1) bit<8> egress_action;
+    @field_list(1) bit<32> seq_to_send;
+    @field_list(1) bit<32> ack_to_send;
 }
 
 // PARSER
@@ -118,7 +120,7 @@ control ServerIngress(
     inout metadata_t meta,
     inout standard_metadata_t stdmeta)
 {
-    register<bit<8>>(1)  connectionState;
+    register<bit<8>>(1) connectionState;
     register<bit<32>>(1) clientSeq; // Client's next expected seq (their ISN + 1)
 
     bit<1> f_syn;
@@ -146,7 +148,7 @@ control ServerIngress(
             meta.egress_action = ACTION_SEND_SYNACK;
             meta.seq_to_send = SERVER_ISN;
             meta.ack_to_send = hdr.tcp.seqNo + 1;
-            clone3(CloneType.I2E, CLONE_SESSION, meta);
+            clone_preserving_field_list(CloneType.I2E, CLONE_SESSION, 1);
 
             connectionState.write(0, 1); // --> SYN_RECEIVED
             mark_to_drop(stdmeta);
@@ -161,17 +163,14 @@ control ServerIngress(
             return;
         }
 
-        // FIN received (or FIN + ACK as the client sends) --> send FIN-ACK
-        // Client sends a combined FIN + ACK (flags = 0x11) to ACK our SYN - ACK and close simultaneously.
-        // Handling both pure FIN and FIN + ACK here.
+        // FIN received (or combined FIN+ACK as the client sends) --> send FIN-ACK
+        // Client sends FIN+ACK (flags = 0x11) to ACK our SYN-ACK and close simultaneously.
+        // Handling both pure FIN and FIN+ACK here.
         if (f_fin == 1 && st == 2) {
-            bit<32> stored;
-            clientSeq.read(stored, 0);
-
             meta.egress_action = ACTION_SEND_FINACK;
-            meta.seq_to_send = SERVER_ISN + 1; // We sent SYN - ACK, so our seq advances by 1
+            meta.seq_to_send = SERVER_ISN + 1; // We sent SYN-ACK, so our seq advances by 1
             meta.ack_to_send = hdr.tcp.seqNo + 1;
-            clone3(CloneType.I2E, CLONE_SESSION, meta);
+            clone_preserving_field_list(CloneType.I2E, CLONE_SESSION, 1);
 
             connectionState.write(0, 3); // --> FIN_RECEIVED
             mark_to_drop(stdmeta);
@@ -206,13 +205,13 @@ control ServerEgress(
         hdr.ipv4.version      = 4;
         hdr.ipv4.ihl          = 5;
         hdr.ipv4.diffserv     = 0;
-        hdr.ipv4.totalLen     = 40;
+        hdr.ipv4.totalLen     = 40; // 20 IP + 20 TCP, no payload
         hdr.ipv4.identification = 0;
         hdr.ipv4.flags        = 3w0b010; // Don't Fragment
         hdr.ipv4.fragOffset   = 0;
         hdr.ipv4.ttl          = 64;
         hdr.ipv4.protocol     = 6;
-        hdr.ipv4.checksum     = 0;
+        hdr.ipv4.checksum     = 0; // Recomputed by ServerComputeChecksum
         hdr.ipv4.srcAddr      = SERVER_IP;
         hdr.ipv4.dstAddr      = CLIENT_IP;
 
@@ -225,7 +224,7 @@ control ServerEgress(
         hdr.tcp.reserved   = 0;
         hdr.tcp.flags      = tcp_flags;
         hdr.tcp.windowSize = 0xFFFF;
-        hdr.tcp.checksum   = 0;
+        hdr.tcp.checksum   = 0; // Recomputed by ServerComputeChecksum
         hdr.tcp.urgentPtr  = 0;
     }
 
