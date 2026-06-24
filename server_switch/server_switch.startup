@@ -3,3 +3,7 @@ ip addr add 10.0.0.2/24 dev eth0
 ip link set eth0 up
 
 simple_switch --device-id 2 -i 1@eth0 /shared/server.json &
+
+# No controller or bridge needed -- all logic is in server.p4
+
+tcpdump -i eth0 -nn tcp

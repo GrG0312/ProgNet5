@@ -16,3 +16,5 @@ trigger = Ether(dst="00:00:00:00:00:02", src="00:00:00:00:00:01", type=0xFFFE)
 sendp(trigger, iface="eth0", verbose=False)
 print("Trigger packet sent")
 EOF
+
+tcpdump -i eth0 -nn tcp
