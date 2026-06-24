@@ -1,8 +1,10 @@
 # compile.ps1
 
+$projectRoot = Split-Path -Parent $PSScriptRoot
+
 Write-Host "Compiling client.p4..." -ForegroundColor Yellow
 
-docker run --rm -v ${PWD}:/workspace p4lang/p4c `
+docker run --rm -v "${projectRoot}:/workspace" p4lang/p4c `
     p4c --target bmv2 `
     --arch v1model `
     -o /workspace/shared/client.json `
@@ -17,7 +19,7 @@ if ($LASTEXITCODE -eq 0) {
 
 Write-Host "Compiling server.p4..." -ForegroundColor Yellow
 
-docker run --rm -v ${PWD}:/workspace p4lang/p4c `
+docker run --rm -v "${projectRoot}:/workspace" p4lang/p4c `
     p4c --target bmv2 `
     --arch v1model `
     -o /workspace/shared/server.json `
