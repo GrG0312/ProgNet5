@@ -1,179 +1,329 @@
 #include <core.p4>
 #include <v1model.p4>
 
-typedef bit<48> mac_address_type;
-typedef bit<32> ipv4_address_type;
+// CONSTANTS
 
-header ethernet_header_type {
-    mac_address_type destinationAddress;
-    mac_address_type sourceAddress;
-    bit<16> ethernetType;
+// Addresses
+const bit<48> CLIENT_MAC = 0x000000000001;
+const bit<48> SERVER_MAC = 0x000000000002;
+const bit<32> CLIENT_IP = 0x0A000001; // 10.0.0.1
+const bit<32> SERVER_IP = 0x0A000002; // 10.0.0.2
+const bit<16> CLIENT_PORT = 50051;
+const bit<16> SERVER_PORT = 8080;
+
+// Client's fixed initial sequence number
+const bit<32> CLIENT_ISN = 32w1000;
+
+// EtherType values
+const bit<16> ETHERTYPE_IPV4    = 0x0800;
+const bit<16> ETHERTYPE_TRIGGER = 0xFFFE; // Custom trigger to start handshake
+
+// Clone session ID used to generate outgoing packets
+const bit<32> CLONE_SESSION = 100;
+
+// CONNECTION STATES
+// 0 = IDLE         : waiting for trigger
+// 1 = SYN_SENT     : SYN sent, waiting for SYN-ACK
+// 2 = ESTABLISHED  : ACK sent, now immediately sending FIN
+// 3 = FIN_SENT     : FIN sent, waiting for FIN-ACK
+// 4 = CLOSED       : final ACK sent, done
+
+// METADATA
+
+// What action the egress pipeline should perform on the cloned packet
+const bit<8> ACTION_SEND_SYN      = 1;
+const bit<8> ACTION_SEND_ACK_FIN  = 2; // Send ACK then immediately FIN (two separate packets)
+const bit<8> ACTION_SEND_ACK      = 3; // Final ACK after FIN-ACK
+const bit<8> ACTION_SEND_FIN      = 4; // Sent as a second clone after ACK
+
+// TYPE DEFINITIONS
+
+typedef bit<48> mac_t;
+typedef bit<32> ip4_t;
+
+// HEADERS
+
+header ethernet_t {
+    mac_t dstAddr;
+    mac_t srcAddr;
+    bit<16> etherType;
 }
 
-header ipv4_header_type {
+header ipv4_t {
     bit<4> version;
-    bit<4> internetHeaderLength;
-    bit<16> totalLength;
-    bit<8> timeToLive;
+    bit<4> ihl;
+    bit<8> diffserv;
+    bit<16> totalLen;
+    bit<16> identification;
+    bit<3> flags;
+    bit<13> fragOffset;
+    bit<8> ttl;
     bit<8> protocol;
-    ipv4_address_type sourceAddress;
-    ipv4_address_type destinationAddress;
+    bit<16> checksum;
+    ip4_t srcAddr;
+    ip4_t dstAddr;
 }
 
-header tcp_header_type {
-    bit<16> sourcePort;
-    bit<16> destinationPort;
-    bit<32> sequenceNumber;
-    bit<32> ackNumber;
+header tcp_t {
+    bit<16> srcPort;
+    bit<16> dstPort;
+    bit<32> seqNo;
+    bit<32> ackNo;
     bit<4> dataOffset;
     bit<4> reserved;
     bit<8> flags;
     bit<16> windowSize;
-    bit<16> tcpChecksum;
-    bit<16> urgentPointer;
+    bit<16> checksum;
+    bit<16> urgentPtr;
 }
 
-struct headers_type {
-    ethernet_header_type ethernet;
-    ipv4_header_type ipv4;
-    tcp_header_type tcp;
+struct headers_t {
+    ethernet_t ethernet;
+    ipv4_t ipv4;
+    tcp_t tcp;
 }
 
-/*
-Notif tpye to the controller for it to know when to send the next packet
-*/
-struct state_change_type {
-    bit<8> previousState;
-    bit<8> newState;
-    bit<32> recievedSequence;
-    bit<32> recievedAck;
+struct metadata_t {
+    bit<8> egress_action; // What the egress block should build
+    bit<32> seq_to_send;
+    bit<32> ack_to_send;
 }
 
-struct local_metadata_type { }
+// PARSER
 
-parser TCPPacketParser(
-    packet_in incomingPacket,
-    out headers_type headers,
-    inout local_metadata_type localMetadata,
-    inout standard_metadata_t standardMetadata) {
-
-    // Extract the ethernet header
+parser ClientParser(
+    packet_in pkt,
+    out headers_t hdr,
+    inout metadata_t meta,
+    inout standard_metadata_t stdmeta)
+{
     state start {
-        incomingPacket.extract(headers.ethernet);
-        transition select(headers.ethernet.ethernetType){
-            0x0800: parse_ipv4;
+        pkt.extract(hdr.ethernet);
+        transition select(hdr.ethernet.etherType) {
+            ETHERTYPE_IPV4: parse_ipv4;
+            ETHERTYPE_TRIGGER: accept;   // Trigger packet: no IP/TCP to parse
             default: accept;
         }
     }
 
-    // Extract the ipv4
     state parse_ipv4 {
-        incomingPacket.extract(headers.ipv4);
-        transition select(headers.ipv4.protocol) {
+        pkt.extract(hdr.ipv4);
+        transition select(hdr.ipv4.protocol) {
             6: parse_tcp;
             default: accept;
         }
     }
 
-    // finally extract the tcp
     state parse_tcp {
-        incomingPacket.extract(headers.tcp);
+        pkt.extract(hdr.tcp);
         transition accept;
     }
 }
 
-control TCPIngressProcessing(
-    inout headers_type headers,
-    inout local_metadata_type localMetadata,
-    inout standard_metadata_t standardMetadata) {
-    
-    // Extract only the necessary flags
-    bit<1> syn = headers.tcp.flags[1:1];
-    bit<1> ack = headers.tcp.flags[4:4];
-    bit<1> fin = headers.tcp.flags[0:0];
+// INGRESS
 
-    /*
-    connection states:
-    - 0 : idle
-    - 1 : syn sent, waiting for synack
-    - 2 : established
-    - 3 : fin sent, waiting for finack
-    - 4 : closed
-    */
-    register<bit<8>>(1) connectionState;
-    register<bit<32>>(1) serverSequenceNumber;
+control ClientIngress(
+    inout headers_t hdr,
+    inout metadata_t meta,
+    inout standard_metadata_t stdmeta)
+{
+    // Persistent state
+    register<bit<8>>(1) connectionState; // Current state (0-4)
+    register<bit<32>>(1) serverSeq; // Server's next expected seq (their ISN + 1)
+
+    // Flag aliases (read once at the top of apply)
+    bit<1> f_syn;
+    bit<1> f_ack;
+    bit<1> f_fin;
 
     apply {
-        if(!headers.tcp.isValid()){
-            mark_to_drop(standardMetadata);
+        // Trigger packet: start the handshake
+        if (hdr.ethernet.etherType == ETHERTYPE_TRIGGER) {
+            bit<8> st;
+            connectionState.read(st, 0);
+            if (st == 0) {
+                // Schedule SYN via clone to egress
+                meta.egress_action = ACTION_SEND_SYN;
+                meta.seq_to_send = CLIENT_ISN;
+                meta.ack_to_send = 0;
+                clone3(CloneType.I2E, CLONE_SESSION, meta);
+                connectionState.write(0, 1); // SYN_SENT
+            }
+            mark_to_drop(stdmeta);
             return;
         }
 
-        bit<8> currentState;
-        connectionState.read(currentState, 0);
-
-        // SYN-ACK recieved while waiting for it
-        if(syn == 1 && ack == 1 && currentState == 1){
-            connectionState.write(0, 2);
-            serverSequenceNumber.write(0, headers.tcp.sequenceNumber + 1);
-
-            state_change_type notif = { 1, 2, headers.tcp.sequenceNumber, headers.tcp.ackNumber };
-            digest(1, notif);
-            mark_to_drop(standardMetadata);
+        // All other packets must be valid TCP
+        if (!hdr.tcp.isValid()) {
+            mark_to_drop(stdmeta);
             return;
         }
 
-        // FIN-ACK recieved while waiting for it
-        if(fin == 1 && ack == 1 && currentState == 3){
-            connectionState.write(0, 4);
-            state_change_type notif = { 3, 4, headers.tcp.sequenceNumber, headers.tcp.ackNumber };
-            digest(1, notif);
-            mark_to_drop(standardMetadata);
+        f_syn = hdr.tcp.flags[1:1];
+        f_ack = hdr.tcp.flags[4:4];
+        f_fin = hdr.tcp.flags[0:0];
+
+        bit<8>  st;
+        connectionState.read(st, 0);
+
+        // SYN-ACK received --> send ACK, then immediately FIN
+        // Server's SYN-ACK: flags = SYN(1) + ACK(1), state must be SYN_SENT(1)
+        if (f_syn == 1 && f_ack == 1 && f_fin == 0 && st == 1) {
+            // Our ACK number = server's seqNo + 1
+            bit<32> ack_val = hdr.tcp.seqNo + 1;
+            serverSeq.write(0, ack_val);
+
+            // First clone: send ACK (seq = CLIENT_ISN + 1, ack = server_isn + 1)
+            meta.egress_action = ACTION_SEND_ACK_FIN;
+            meta.seq_to_send = hdr.tcp.ackNo; // Server echoed our ISN + 1 back as ackNo
+            meta.ack_to_send = ack_val;
+            clone3(CloneType.I2E, CLONE_SESSION, meta);
+
+            connectionState.write(0, 3); // FIN_SENT (we send ACK + FIN together)
+            mark_to_drop(stdmeta);
             return;
         }
 
-        mark_to_drop(standardMetadata);
+        // FIN-ACK received --> send final ACK
+        // Server's FIN-ACK: flags = FIN(1) + ACK(1), state must be FIN_SENT(3)
+        if (f_fin == 1 && f_ack == 1 && st == 3) {
+            bit<32> stored_seq;
+            serverSeq.read(stored_seq, 0);
+
+            meta.egress_action = ACTION_SEND_ACK;
+            meta.seq_to_send = hdr.tcp.ackNo;
+            meta.ack_to_send = hdr.tcp.seqNo + 1;
+            clone3(CloneType.I2E, CLONE_SESSION, meta);
+
+            connectionState.write(0, 4); // CLOSED
+            mark_to_drop(stdmeta);
+            return;
+        }
+
+        mark_to_drop(stdmeta);
     }
 }
 
-control TCPEgressProcessing(
-    inout headers_type headers,
-    inout local_metadata_type localMetadata,
-    inout standard_metadata_t standardMetadata) {
+// EGRESS
 
-    apply { }
-}
+control ClientEgress(
+    inout headers_t hdr,
+    inout metadata_t meta,
+    inout standard_metadata_t stdmeta)
+{
+    // Builds the Ethernet + IPv4 + TCP headers for an outgoing packet
+    action build_packet(bit<8> tcp_flags, bit<32> seq, bit<32> ack) {
+        // Ethernet
+        hdr.ethernet.setValid();
+        hdr.ethernet.srcAddr = CLIENT_MAC;
+        hdr.ethernet.dstAddr = SERVER_MAC;
+        hdr.ethernet.etherType = ETHERTYPE_IPV4;
 
-control TCPVerifyChecksum(
-    inout headers_type headers,
-    inout local_metadata_type localMetadata) {
+        // IPv4  (20-byte header, no options)
+        hdr.ipv4.setValid();
+        hdr.ipv4.version      = 4;
+        hdr.ipv4.ihl          = 5;
+        hdr.ipv4.diffserv     = 0;
+        hdr.ipv4.totalLen     = 40; // 20 IP + 20 TCP, no payload
+        hdr.ipv4.identification = 0;
+        hdr.ipv4.flags        = 3w0b010; // Don't Fragment
+        hdr.ipv4.fragOffset   = 0;
+        hdr.ipv4.ttl          = 64;
+        hdr.ipv4.protocol     = 6;
+        hdr.ipv4.checksum     = 0; // Recomputed by TCPComputeChecksum
+        hdr.ipv4.srcAddr      = CLIENT_IP;
+        hdr.ipv4.dstAddr      = SERVER_IP;
 
-    apply { }
-}
-
-control TCPComputeChecksum(
-    inout headers_type headers,
-    inout local_metadata_type localMetadata) {
-
-    apply { }
-}
-
-control TCPPacketDeparser(
-    packet_out outgoingPacket,
-    in headers_type headers) {
+        // TCP
+        hdr.tcp.setValid();
+        hdr.tcp.srcPort    = CLIENT_PORT;
+        hdr.tcp.dstPort    = SERVER_PORT;
+        hdr.tcp.seqNo      = seq;
+        hdr.tcp.ackNo      = ack;
+        hdr.tcp.dataOffset = 5;
+        hdr.tcp.reserved   = 0;
+        hdr.tcp.flags      = tcp_flags;
+        hdr.tcp.windowSize = 0xFFFF;
+        hdr.tcp.checksum   = 0; // Recomputed by TCPComputeChecksum
+        hdr.tcp.urgentPtr  = 0;
+    }
 
     apply {
-        outgoingPacket.emit(headers.ethernet);
-        outgoingPacket.emit(headers.ipv4);
-        outgoingPacket.emit(headers.tcp);
+        // Only act on cloned packets (instance_type == 1 means I2E clone)
+        if (stdmeta.instance_type != 1) {
+            mark_to_drop(stdmeta);
+            return;
+        }
+
+        if (meta.egress_action == ACTION_SEND_SYN) {
+            // SYN: flags = 0x02
+            build_packet(0x02, meta.seq_to_send, 0);
+            stdmeta.egress_port = 1;
+        }
+        else if (meta.egress_action == ACTION_SEND_ACK_FIN) {
+            // Send ACK and FIN as a combined FIN+ACK packet (flags = 0x11)
+            // The client ACKs the SYN-ACK and simultaneously
+            // signals it has no more data to send.
+            build_packet(0x11, meta.seq_to_send, meta.ack_to_send);
+            stdmeta.egress_port = 1;
+        }
+        else if (meta.egress_action == ACTION_SEND_ACK) {
+            // Final ACK: flags = 0x10
+            build_packet(0x10, meta.seq_to_send, meta.ack_to_send);
+            stdmeta.egress_port = 1;
+        }
+        else {
+            mark_to_drop(stdmeta);
+        }
     }
 }
+
+// CHECKSUMS
+
+control ClientVerifyChecksum(
+    inout headers_t hdr,
+    inout metadata_t meta) {
+    apply { }
+}
+
+control ClientComputeChecksum(
+    inout headers_t hdr,
+    inout metadata_t meta) {
+    apply {
+        update_checksum(
+            hdr.ipv4.isValid(),
+            {
+                hdr.ipv4.version, hdr.ipv4.ihl, hdr.ipv4.diffserv,
+                hdr.ipv4.totalLen, hdr.ipv4.identification,
+                hdr.ipv4.flags, hdr.ipv4.fragOffset,
+                hdr.ipv4.ttl, hdr.ipv4.protocol,
+                hdr.ipv4.srcAddr, hdr.ipv4.dstAddr
+            },
+            hdr.ipv4.checksum,
+            HashAlgorithm.csum16
+        );
+    }
+}
+
+// DEPARSER
+
+control ClientDeparser(
+    packet_out pkt,
+    in headers_t hdr) {
+    apply {
+        pkt.emit(hdr.ethernet);
+        pkt.emit(hdr.ipv4);
+        pkt.emit(hdr.tcp);
+    }
+}
+
+// MAIN
 
 V1Switch(
-    TCPPacketParser(),
-    TCPVerifyChecksum(),
-    TCPIngressProcessing(),
-    TCPEgressProcessing(),
-    TCPComputeChecksum(),
-    TCPPacketDeparser()
+    ClientParser(),
+    ClientVerifyChecksum(),
+    ClientIngress(),
+    ClientEgress(),
+    ClientComputeChecksum(),
+    ClientDeparser()
 ) main;

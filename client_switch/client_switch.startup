@@ -1,0 +1,18 @@
+#!/bin/bash
+ip addr add 10.0.0.1/24 dev eth0
+ip link set eth0 up
+
+simple_switch --device-id 1 -i 1@eth0 /shared/client.json &
+
+# Wait for the switch to be ready before injecting the trigger
+sleep 2
+
+# Inject a trigger packet with EtherType 0xFFFE directly into eth0.
+# The client P4 switch detects this EtherType and fires the SYN.
+python3 - <<'EOF'
+from scapy.all import sendp, Ether
+
+trigger = Ether(dst="00:00:00:00:00:02", src="00:00:00:00:00:01", type=0xFFFE)
+sendp(trigger, iface="eth0", verbose=False)
+print("Trigger packet sent")
+EOF
