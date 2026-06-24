@@ -254,17 +254,17 @@ control ClientEgress(
         if (meta.egress_action == ACTION_SEND_SYN) {
             // SYN: flags = 0x02
             build_packet(0x02, meta.seq_to_send, 0);
-            stdmeta.egress_port = 1;
+            stdmeta.egress_port = 2; // port 2 = eth1, facing LAN_B / server_switch
         }
         else if (meta.egress_action == ACTION_SEND_ACK_FIN) {
             // Combined FIN+ACK (flags = 0x11): ACKs the SYN-ACK and closes simultaneously
             build_packet(0x11, meta.seq_to_send, meta.ack_to_send);
-            stdmeta.egress_port = 1;
+            stdmeta.egress_port = 2;
         }
         else if (meta.egress_action == ACTION_SEND_ACK) {
             // Final ACK: flags = 0x10
             build_packet(0x10, meta.seq_to_send, meta.ack_to_send);
-            stdmeta.egress_port = 1;
+            stdmeta.egress_port = 2;
         }
         else {
             mark_to_drop(stdmeta);

@@ -1,0 +1,3136 @@
+{
+  "header_types" : [
+    {
+      "name" : "scalars_0",
+      "id" : 0,
+      "fields" : [
+        ["tmp", 32, false],
+        ["st_0", 8, false],
+        ["metadata_t.egress_action", 8, false],
+        ["metadata_t.seq_to_send", 32, false],
+        ["metadata_t.ack_to_send", 32, false]
+      ]
+    },
+    {
+      "name" : "standard_metadata",
+      "id" : 1,
+      "fields" : [
+        ["ingress_port", 9, false],
+        ["egress_spec", 9, false],
+        ["egress_port", 9, false],
+        ["instance_type", 32, false],
+        ["packet_length", 32, false],
+        ["enq_timestamp", 32, false],
+        ["enq_qdepth", 19, false],
+        ["deq_timedelta", 32, false],
+        ["deq_qdepth", 19, false],
+        ["ingress_global_timestamp", 48, false],
+        ["egress_global_timestamp", 48, false],
+        ["mcast_grp", 16, false],
+        ["egress_rid", 16, false],
+        ["checksum_error", 1, false],
+        ["parser_error", 32, false],
+        ["priority", 3, false],
+        ["_padding", 3, false]
+      ]
+    },
+    {
+      "name" : "ethernet_t",
+      "id" : 2,
+      "fields" : [
+        ["dstAddr", 48, false],
+        ["srcAddr", 48, false],
+        ["etherType", 16, false]
+      ]
+    },
+    {
+      "name" : "ipv4_t",
+      "id" : 3,
+      "fields" : [
+        ["version", 4, false],
+        ["ihl", 4, false],
+        ["diffserv", 8, false],
+        ["totalLen", 16, false],
+        ["identification", 16, false],
+        ["flags", 3, false],
+        ["fragOffset", 13, false],
+        ["ttl", 8, false],
+        ["protocol", 8, false],
+        ["checksum", 16, false],
+        ["srcAddr", 32, false],
+        ["dstAddr", 32, false]
+      ]
+    },
+    {
+      "name" : "tcp_t",
+      "id" : 4,
+      "fields" : [
+        ["srcPort", 16, false],
+        ["dstPort", 16, false],
+        ["seqNo", 32, false],
+        ["ackNo", 32, false],
+        ["dataOffset", 4, false],
+        ["reserved", 4, false],
+        ["flags", 8, false],
+        ["windowSize", 16, false],
+        ["checksum", 16, false],
+        ["urgentPtr", 16, false]
+      ]
+    }
+  ],
+  "headers" : [
+    {
+      "name" : "scalars",
+      "id" : 0,
+      "header_type" : "scalars_0",
+      "metadata" : true,
+      "pi_omit" : true
+    },
+    {
+      "name" : "standard_metadata",
+      "id" : 1,
+      "header_type" : "standard_metadata",
+      "metadata" : true,
+      "pi_omit" : true
+    },
+    {
+      "name" : "ethernet",
+      "id" : 2,
+      "header_type" : "ethernet_t",
+      "metadata" : false,
+      "pi_omit" : true
+    },
+    {
+      "name" : "ipv4",
+      "id" : 3,
+      "header_type" : "ipv4_t",
+      "metadata" : false,
+      "pi_omit" : true
+    },
+    {
+      "name" : "tcp",
+      "id" : 4,
+      "header_type" : "tcp_t",
+      "metadata" : false,
+      "pi_omit" : true
+    }
+  ],
+  "header_stacks" : [],
+  "header_union_types" : [],
+  "header_unions" : [],
+  "header_union_stacks" : [],
+  "field_lists" : [
+    {
+      "id" : 1,
+      "name" : "field_list1",
+      "elements" : [
+        {
+          "type" : "field",
+          "value" : ["scalars", "metadata_t.egress_action"]
+        },
+        {
+          "type" : "field",
+          "value" : ["scalars", "metadata_t.seq_to_send"]
+        },
+        {
+          "type" : "field",
+          "value" : ["scalars", "metadata_t.ack_to_send"]
+        }
+      ]
+    }
+  ],
+  "errors" : [
+    ["NoError", 0],
+    ["PacketTooShort", 1],
+    ["NoMatch", 2],
+    ["StackOutOfBounds", 3],
+    ["HeaderTooShort", 4],
+    ["ParserTimeout", 5],
+    ["ParserInvalidArgument", 6]
+  ],
+  "enums" : [],
+  "parsers" : [
+    {
+      "name" : "parser",
+      "id" : 0,
+      "init_state" : "start",
+      "parse_states" : [
+        {
+          "name" : "start",
+          "id" : 0,
+          "parser_ops" : [
+            {
+              "parameters" : [
+                {
+                  "type" : "regular",
+                  "value" : "ethernet"
+                }
+              ],
+              "op" : "extract"
+            }
+          ],
+          "transitions" : [
+            {
+              "type" : "hexstr",
+              "value" : "0x0800",
+              "mask" : null,
+              "next_state" : "parse_ipv4"
+            },
+            {
+              "type" : "default",
+              "value" : null,
+              "mask" : null,
+              "next_state" : null
+            }
+          ],
+          "transition_key" : [
+            {
+              "type" : "field",
+              "value" : ["ethernet", "etherType"]
+            }
+          ]
+        },
+        {
+          "name" : "parse_ipv4",
+          "id" : 1,
+          "parser_ops" : [
+            {
+              "parameters" : [
+                {
+                  "type" : "regular",
+                  "value" : "ipv4"
+                }
+              ],
+              "op" : "extract"
+            }
+          ],
+          "transitions" : [
+            {
+              "type" : "hexstr",
+              "value" : "0x06",
+              "mask" : null,
+              "next_state" : "parse_tcp"
+            },
+            {
+              "type" : "default",
+              "value" : null,
+              "mask" : null,
+              "next_state" : null
+            }
+          ],
+          "transition_key" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "protocol"]
+            }
+          ]
+        },
+        {
+          "name" : "parse_tcp",
+          "id" : 2,
+          "parser_ops" : [
+            {
+              "parameters" : [
+                {
+                  "type" : "regular",
+                  "value" : "tcp"
+                }
+              ],
+              "op" : "extract"
+            }
+          ],
+          "transitions" : [
+            {
+              "type" : "default",
+              "value" : null,
+              "mask" : null,
+              "next_state" : null
+            }
+          ],
+          "transition_key" : []
+        }
+      ]
+    }
+  ],
+  "parse_vsets" : [],
+  "deparsers" : [
+    {
+      "name" : "deparser",
+      "id" : 0,
+      "source_info" : {
+        "filename" : "/workspace/p4/server.p4",
+        "line" : 283,
+        "column" : 8,
+        "source_fragment" : "ServerDeparser"
+      },
+      "order" : ["ethernet", "ipv4", "tcp"],
+      "primitives" : []
+    }
+  ],
+  "meter_arrays" : [],
+  "counter_arrays" : [],
+  "register_arrays" : [
+    {
+      "name" : "ServerIngress.connectionState",
+      "id" : 0,
+      "source_info" : {
+        "filename" : "/workspace/p4/server.p4",
+        "line" : 123,
+        "column" : 24,
+        "source_fragment" : "connectionState"
+      },
+      "size" : 1,
+      "bitwidth" : 8
+    },
+    {
+      "name" : "ServerIngress.clientSeq",
+      "id" : 1,
+      "source_info" : {
+        "filename" : "/workspace/p4/server.p4",
+        "line" : 124,
+        "column" : 25,
+        "source_fragment" : "clientSeq"
+      },
+      "size" : 1,
+      "bitwidth" : 32
+    }
+  ],
+  "calculations" : [
+    {
+      "name" : "calc",
+      "id" : 0,
+      "source_info" : {
+        "filename" : "/workspace/p4/server.p4",
+        "line" : 266,
+        "column" : 8,
+        "source_fragment" : "update_checksum( ..."
+      },
+      "algo" : "csum16",
+      "input" : [
+        {
+          "type" : "field",
+          "value" : ["ipv4", "version"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "ihl"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "diffserv"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "totalLen"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "identification"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "flags"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "fragOffset"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "ttl"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "protocol"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "srcAddr"]
+        },
+        {
+          "type" : "field",
+          "value" : ["ipv4", "dstAddr"]
+        }
+      ]
+    }
+  ],
+  "learn_lists" : [],
+  "actions" : [
+    {
+      "name" : "server146",
+      "id" : 0,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "tmp"]
+            },
+            {
+              "type" : "expression",
+              "value" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "&",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "+",
+                      "left" : {
+                        "type" : "field",
+                        "value" : ["tcp", "seqNo"]
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x00000001"
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0xffffffff"
+                  }
+                }
+              }
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 146,
+            "column" : 31,
+            "source_fragment" : "hdr.tcp.seqNo + 1"
+          }
+        },
+        {
+          "op" : "register_write",
+          "parameters" : [
+            {
+              "type" : "register_array",
+              "value" : "ServerIngress.clientSeq"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00000000"
+            },
+            {
+              "type" : "field",
+              "value" : ["scalars", "tmp"]
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 146,
+            "column" : 12,
+            "source_fragment" : "clientSeq.write(0, hdr.tcp.seqNo + 1)"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.egress_action"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x01"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 29,
+            "column" : 34,
+            "source_fragment" : "1; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.seq_to_send"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00001388"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 14,
+            "column" : 27,
+            "source_fragment" : "32w5000; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.ack_to_send"]
+            },
+            {
+              "type" : "expression",
+              "value" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "&",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "+",
+                      "left" : {
+                        "type" : "field",
+                        "value" : ["tcp", "seqNo"]
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x00000001"
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0xffffffff"
+                  }
+                }
+              }
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 150,
+            "column" : 12,
+            "source_fragment" : "meta.ack_to_send = hdr.tcp.seqNo + 1"
+          }
+        },
+        {
+          "op" : "clone_ingress_pkt_to_egress",
+          "parameters" : [
+            {
+              "type" : "hexstr",
+              "value" : "0x00000064"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x1"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 151,
+            "column" : 12,
+            "source_fragment" : "clone_preserving_field_list(CloneType.I2E, CLONE_SESSION, 1)"
+          }
+        },
+        {
+          "op" : "register_write",
+          "parameters" : [
+            {
+              "type" : "register_array",
+              "value" : "ServerIngress.connectionState"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00000000"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x01"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 153,
+            "column" : 12,
+            "source_fragment" : "connectionState.write(0, 1)"
+          }
+        },
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 154,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server161",
+      "id" : 1,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "register_write",
+          "parameters" : [
+            {
+              "type" : "register_array",
+              "value" : "ServerIngress.connectionState"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00000000"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x02"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 161,
+            "column" : 12,
+            "source_fragment" : "connectionState.write(0, 2)"
+          }
+        },
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 162,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server170",
+      "id" : 2,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.egress_action"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x02"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 30,
+            "column" : 34,
+            "source_fragment" : "2; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.seq_to_send"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00001389"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 171,
+            "column" : 12,
+            "source_fragment" : "meta.seq_to_send = SERVER_ISN + 1"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.ack_to_send"]
+            },
+            {
+              "type" : "expression",
+              "value" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "&",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "+",
+                      "left" : {
+                        "type" : "field",
+                        "value" : ["tcp", "seqNo"]
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x00000001"
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0xffffffff"
+                  }
+                }
+              }
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 172,
+            "column" : 12,
+            "source_fragment" : "meta.ack_to_send = hdr.tcp.seqNo + 1"
+          }
+        },
+        {
+          "op" : "clone_ingress_pkt_to_egress",
+          "parameters" : [
+            {
+              "type" : "hexstr",
+              "value" : "0x00000064"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x1"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 173,
+            "column" : 12,
+            "source_fragment" : "clone_preserving_field_list(CloneType.I2E, CLONE_SESSION, 1)"
+          }
+        },
+        {
+          "op" : "register_write",
+          "parameters" : [
+            {
+              "type" : "register_array",
+              "value" : "ServerIngress.connectionState"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00000000"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x03"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 175,
+            "column" : 12,
+            "source_fragment" : "connectionState.write(0, 3)"
+          }
+        },
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 176,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server182",
+      "id" : 3,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "register_write",
+          "parameters" : [
+            {
+              "type" : "register_array",
+              "value" : "ServerIngress.connectionState"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00000000"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x04"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 182,
+            "column" : 12,
+            "source_fragment" : "connectionState.write(0, 4)"
+          }
+        },
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 183,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server187",
+      "id" : 4,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 187,
+            "column" : 8,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server141",
+      "id" : 5,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "register_read",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "st_0"]
+            },
+            {
+              "type" : "register_array",
+              "value" : "ServerIngress.connectionState"
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00000000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 141,
+            "column" : 8,
+            "source_fragment" : "connectionState.read(st, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server132",
+      "id" : 6,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 132,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "ServerEgress.build_packet",
+      "id" : 7,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "add_header",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "ethernet"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 199,
+            "column" : 8,
+            "source_fragment" : "hdr.ethernet.setValid()"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ethernet", "srcAddr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x000000000002"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 7,
+            "column" : 27,
+            "source_fragment" : "0x000000000002; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ethernet", "dstAddr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x000000000001"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 6,
+            "column" : 27,
+            "source_fragment" : "0x000000000001; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ethernet", "etherType"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0800"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 16,
+            "column" : 31,
+            "source_fragment" : "0x0800; ..."
+          }
+        },
+        {
+          "op" : "add_header",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "ipv4"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 204,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.setValid()"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "version"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x04"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 205,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.version = 4"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "ihl"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x05"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 206,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.ihl = 5"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "diffserv"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 207,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.diffserv = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "totalLen"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0028"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 208,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.totalLen = 40"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "identification"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 209,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.identification = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "flags"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x02"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 210,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.flags = 3w0b010"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "fragOffset"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 211,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.fragOffset = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "ttl"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x40"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 212,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.ttl = 64"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "protocol"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x06"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 213,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.protocol = 6"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "checksum"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 214,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.checksum = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "srcAddr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0a000002"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 9,
+            "column" : 26,
+            "source_fragment" : "0x0A000002; // 10.0.0.2 ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "dstAddr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0a000001"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 8,
+            "column" : 26,
+            "source_fragment" : "0x0A000001; // 10.0.0.1 ..."
+          }
+        },
+        {
+          "op" : "add_header",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "tcp"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 218,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.setValid()"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "srcPort"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x1f90"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 11,
+            "column" : 28,
+            "source_fragment" : "8080; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "dstPort"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0xc383"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 10,
+            "column" : 28,
+            "source_fragment" : "50051; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "seqNo"]
+            },
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.seq_to_send"]
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 221,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.seqNo = seq"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "ackNo"]
+            },
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.ack_to_send"]
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 222,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.ackNo = ack"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "dataOffset"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x05"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 223,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.dataOffset = 5"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "reserved"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 224,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.reserved = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "flags"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x12"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 225,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.flags = tcp_flags"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "windowSize"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0xffff"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 226,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.windowSize = 0xFFFF"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "checksum"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 227,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.checksum = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "urgentPtr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 228,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.urgentPtr = 0"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "ServerEgress.build_packet",
+      "id" : 8,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "add_header",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "ethernet"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 199,
+            "column" : 8,
+            "source_fragment" : "hdr.ethernet.setValid()"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ethernet", "srcAddr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x000000000002"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 7,
+            "column" : 27,
+            "source_fragment" : "0x000000000002; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ethernet", "dstAddr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x000000000001"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 6,
+            "column" : 27,
+            "source_fragment" : "0x000000000001; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ethernet", "etherType"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0800"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 16,
+            "column" : 31,
+            "source_fragment" : "0x0800; ..."
+          }
+        },
+        {
+          "op" : "add_header",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "ipv4"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 204,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.setValid()"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "version"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x04"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 205,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.version = 4"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "ihl"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x05"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 206,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.ihl = 5"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "diffserv"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 207,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.diffserv = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "totalLen"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0028"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 208,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.totalLen = 40"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "identification"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 209,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.identification = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "flags"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x02"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 210,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.flags = 3w0b010"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "fragOffset"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 211,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.fragOffset = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "ttl"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x40"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 212,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.ttl = 64"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "protocol"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x06"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 213,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.protocol = 6"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "checksum"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 214,
+            "column" : 8,
+            "source_fragment" : "hdr.ipv4.checksum = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "srcAddr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0a000002"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 9,
+            "column" : 26,
+            "source_fragment" : "0x0A000002; // 10.0.0.2 ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["ipv4", "dstAddr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0a000001"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 8,
+            "column" : 26,
+            "source_fragment" : "0x0A000001; // 10.0.0.1 ..."
+          }
+        },
+        {
+          "op" : "add_header",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "tcp"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 218,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.setValid()"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "srcPort"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x1f90"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 11,
+            "column" : 28,
+            "source_fragment" : "8080; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "dstPort"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0xc383"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 10,
+            "column" : 28,
+            "source_fragment" : "50051; ..."
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "seqNo"]
+            },
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.seq_to_send"]
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 221,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.seqNo = seq"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "ackNo"]
+            },
+            {
+              "type" : "field",
+              "value" : ["scalars", "metadata_t.ack_to_send"]
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 222,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.ackNo = ack"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "dataOffset"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x05"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 223,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.dataOffset = 5"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "reserved"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x00"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 224,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.reserved = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "flags"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x11"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 225,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.flags = tcp_flags"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "windowSize"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0xffff"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 226,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.windowSize = 0xFFFF"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "checksum"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 227,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.checksum = 0"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["tcp", "urgentPtr"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0000"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 228,
+            "column" : 8,
+            "source_fragment" : "hdr.tcp.urgentPtr = 0"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server234",
+      "id" : 9,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 234,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server241",
+      "id" : 10,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["standard_metadata", "egress_port"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0001"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 241,
+            "column" : 12,
+            "source_fragment" : "stdmeta.egress_port = 1"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server246",
+      "id" : 11,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["standard_metadata", "egress_port"]
+            },
+            {
+              "type" : "hexstr",
+              "value" : "0x0001"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 246,
+            "column" : 12,
+            "source_fragment" : "stdmeta.egress_port = 1"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "server249",
+      "id" : 12,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 249,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          }
+        }
+      ]
+    }
+  ],
+  "pipelines" : [
+    {
+      "name" : "ingress",
+      "id" : 0,
+      "source_info" : {
+        "filename" : "/workspace/p4/server.p4",
+        "line" : 118,
+        "column" : 8,
+        "source_fragment" : "ServerIngress"
+      },
+      "init_table" : "node_2",
+      "tables" : [
+        {
+          "name" : "tbl_server141",
+          "id" : 0,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 141,
+            "column" : 8,
+            "source_fragment" : "connectionState.read(st, 0)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [5],
+          "actions" : ["server141"],
+          "base_default_next" : "node_4",
+          "next_tables" : {
+            "server141" : "node_4"
+          },
+          "default_entry" : {
+            "action_id" : 5,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server146",
+          "id" : 1,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 146,
+            "column" : 12,
+            "source_fragment" : "clientSeq.write(0, hdr.tcp.seqNo + 1); ..."
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [0],
+          "actions" : ["server146"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server146" : null
+          },
+          "default_entry" : {
+            "action_id" : 0,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server161",
+          "id" : 2,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 161,
+            "column" : 12,
+            "source_fragment" : "connectionState.write(0, 2); // --> ESTABLISHED ..."
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [1],
+          "actions" : ["server161"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server161" : null
+          },
+          "default_entry" : {
+            "action_id" : 1,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server170",
+          "id" : 3,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 170,
+            "column" : 31,
+            "source_fragment" : "= ACTION_SEND_FINACK; ..."
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [2],
+          "actions" : ["server170"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server170" : null
+          },
+          "default_entry" : {
+            "action_id" : 2,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server182",
+          "id" : 4,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 182,
+            "column" : 12,
+            "source_fragment" : "connectionState.write(0, 4); // --> CLOSED ..."
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [3],
+          "actions" : ["server182"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server182" : null
+          },
+          "default_entry" : {
+            "action_id" : 3,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server187",
+          "id" : 5,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 187,
+            "column" : 8,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [4],
+          "actions" : ["server187"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server187" : null
+          },
+          "default_entry" : {
+            "action_id" : 4,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server132",
+          "id" : 6,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 132,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [6],
+          "actions" : ["server132"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server132" : null
+          },
+          "default_entry" : {
+            "action_id" : 6,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        }
+      ],
+      "action_profiles" : [],
+      "conditionals" : [
+        {
+          "name" : "node_2",
+          "id" : 0,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 131,
+            "column" : 13,
+            "source_fragment" : "hdr.tcp.isValid()"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "d2b",
+              "left" : null,
+              "right" : {
+                "type" : "field",
+                "value" : ["tcp", "$valid$"]
+              }
+            }
+          },
+          "true_next" : "tbl_server141",
+          "false_next" : "tbl_server132"
+        },
+        {
+          "name" : "node_4",
+          "id" : 1,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 144,
+            "column" : 12,
+            "source_fragment" : "f_syn == 1 && f_ack == 0 && f_fin == 0 && st == 0"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "and",
+              "left" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "and",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "and",
+                      "left" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "==",
+                          "left" : {
+                            "type" : "expression",
+                            "value" : {
+                              "op" : "&",
+                              "left" : {
+                                "type" : "expression",
+                                "value" : {
+                                  "op" : "&",
+                                  "left" : {
+                                    "type" : "expression",
+                                    "value" : {
+                                      "op" : ">>",
+                                      "left" : {
+                                        "type" : "field",
+                                        "value" : ["tcp", "flags"]
+                                      },
+                                      "right" : {
+                                        "type" : "hexstr",
+                                        "value" : "0x1"
+                                      }
+                                    }
+                                  },
+                                  "right" : {
+                                    "type" : "hexstr",
+                                    "value" : "0xff"
+                                  }
+                                }
+                              },
+                              "right" : {
+                                "type" : "hexstr",
+                                "value" : "0x01"
+                              }
+                            }
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x01"
+                          }
+                        }
+                      },
+                      "right" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "==",
+                          "left" : {
+                            "type" : "expression",
+                            "value" : {
+                              "op" : "&",
+                              "left" : {
+                                "type" : "expression",
+                                "value" : {
+                                  "op" : "&",
+                                  "left" : {
+                                    "type" : "expression",
+                                    "value" : {
+                                      "op" : ">>",
+                                      "left" : {
+                                        "type" : "field",
+                                        "value" : ["tcp", "flags"]
+                                      },
+                                      "right" : {
+                                        "type" : "hexstr",
+                                        "value" : "0x4"
+                                      }
+                                    }
+                                  },
+                                  "right" : {
+                                    "type" : "hexstr",
+                                    "value" : "0xff"
+                                  }
+                                }
+                              },
+                              "right" : {
+                                "type" : "hexstr",
+                                "value" : "0x01"
+                              }
+                            }
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x00"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "==",
+                      "left" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "&",
+                          "left" : {
+                            "type" : "field",
+                            "value" : ["tcp", "flags"]
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x01"
+                          }
+                        }
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x00"
+                      }
+                    }
+                  }
+                }
+              },
+              "right" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "==",
+                  "left" : {
+                    "type" : "field",
+                    "value" : ["scalars", "st_0"]
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0x00"
+                  }
+                }
+              }
+            }
+          },
+          "true_next" : "tbl_server146",
+          "false_next" : "node_6"
+        },
+        {
+          "name" : "node_6",
+          "id" : 2,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 160,
+            "column" : 12,
+            "source_fragment" : "f_syn == 0 && f_ack == 1 && f_fin == 0 && st == 1"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "and",
+              "left" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "and",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "and",
+                      "left" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "==",
+                          "left" : {
+                            "type" : "expression",
+                            "value" : {
+                              "op" : "&",
+                              "left" : {
+                                "type" : "expression",
+                                "value" : {
+                                  "op" : "&",
+                                  "left" : {
+                                    "type" : "expression",
+                                    "value" : {
+                                      "op" : ">>",
+                                      "left" : {
+                                        "type" : "field",
+                                        "value" : ["tcp", "flags"]
+                                      },
+                                      "right" : {
+                                        "type" : "hexstr",
+                                        "value" : "0x1"
+                                      }
+                                    }
+                                  },
+                                  "right" : {
+                                    "type" : "hexstr",
+                                    "value" : "0xff"
+                                  }
+                                }
+                              },
+                              "right" : {
+                                "type" : "hexstr",
+                                "value" : "0x01"
+                              }
+                            }
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x00"
+                          }
+                        }
+                      },
+                      "right" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "==",
+                          "left" : {
+                            "type" : "expression",
+                            "value" : {
+                              "op" : "&",
+                              "left" : {
+                                "type" : "expression",
+                                "value" : {
+                                  "op" : "&",
+                                  "left" : {
+                                    "type" : "expression",
+                                    "value" : {
+                                      "op" : ">>",
+                                      "left" : {
+                                        "type" : "field",
+                                        "value" : ["tcp", "flags"]
+                                      },
+                                      "right" : {
+                                        "type" : "hexstr",
+                                        "value" : "0x4"
+                                      }
+                                    }
+                                  },
+                                  "right" : {
+                                    "type" : "hexstr",
+                                    "value" : "0xff"
+                                  }
+                                }
+                              },
+                              "right" : {
+                                "type" : "hexstr",
+                                "value" : "0x01"
+                              }
+                            }
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x01"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "==",
+                      "left" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "&",
+                          "left" : {
+                            "type" : "field",
+                            "value" : ["tcp", "flags"]
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x01"
+                          }
+                        }
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x00"
+                      }
+                    }
+                  }
+                }
+              },
+              "right" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "==",
+                  "left" : {
+                    "type" : "field",
+                    "value" : ["scalars", "st_0"]
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0x01"
+                  }
+                }
+              }
+            }
+          },
+          "true_next" : "tbl_server161",
+          "false_next" : "node_8"
+        },
+        {
+          "name" : "node_8",
+          "id" : 3,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 169,
+            "column" : 12,
+            "source_fragment" : "f_fin == 1 && st == 2"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "and",
+              "left" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "==",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "&",
+                      "left" : {
+                        "type" : "field",
+                        "value" : ["tcp", "flags"]
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x01"
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0x01"
+                  }
+                }
+              },
+              "right" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "==",
+                  "left" : {
+                    "type" : "field",
+                    "value" : ["scalars", "st_0"]
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0x02"
+                  }
+                }
+              }
+            }
+          },
+          "true_next" : "tbl_server170",
+          "false_next" : "node_10"
+        },
+        {
+          "name" : "node_10",
+          "id" : 4,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 181,
+            "column" : 12,
+            "source_fragment" : "f_ack == 1 && f_fin == 0 && f_syn == 0 && st == 3"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "and",
+              "left" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "and",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "and",
+                      "left" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "==",
+                          "left" : {
+                            "type" : "expression",
+                            "value" : {
+                              "op" : "&",
+                              "left" : {
+                                "type" : "expression",
+                                "value" : {
+                                  "op" : "&",
+                                  "left" : {
+                                    "type" : "expression",
+                                    "value" : {
+                                      "op" : ">>",
+                                      "left" : {
+                                        "type" : "field",
+                                        "value" : ["tcp", "flags"]
+                                      },
+                                      "right" : {
+                                        "type" : "hexstr",
+                                        "value" : "0x4"
+                                      }
+                                    }
+                                  },
+                                  "right" : {
+                                    "type" : "hexstr",
+                                    "value" : "0xff"
+                                  }
+                                }
+                              },
+                              "right" : {
+                                "type" : "hexstr",
+                                "value" : "0x01"
+                              }
+                            }
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x01"
+                          }
+                        }
+                      },
+                      "right" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "==",
+                          "left" : {
+                            "type" : "expression",
+                            "value" : {
+                              "op" : "&",
+                              "left" : {
+                                "type" : "field",
+                                "value" : ["tcp", "flags"]
+                              },
+                              "right" : {
+                                "type" : "hexstr",
+                                "value" : "0x01"
+                              }
+                            }
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x00"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "==",
+                      "left" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "&",
+                          "left" : {
+                            "type" : "expression",
+                            "value" : {
+                              "op" : "&",
+                              "left" : {
+                                "type" : "expression",
+                                "value" : {
+                                  "op" : ">>",
+                                  "left" : {
+                                    "type" : "field",
+                                    "value" : ["tcp", "flags"]
+                                  },
+                                  "right" : {
+                                    "type" : "hexstr",
+                                    "value" : "0x1"
+                                  }
+                                }
+                              },
+                              "right" : {
+                                "type" : "hexstr",
+                                "value" : "0xff"
+                              }
+                            }
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0x01"
+                          }
+                        }
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0x00"
+                      }
+                    }
+                  }
+                }
+              },
+              "right" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "==",
+                  "left" : {
+                    "type" : "field",
+                    "value" : ["scalars", "st_0"]
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0x03"
+                  }
+                }
+              }
+            }
+          },
+          "true_next" : "tbl_server182",
+          "false_next" : "tbl_server187"
+        }
+      ]
+    },
+    {
+      "name" : "egress",
+      "id" : 1,
+      "source_info" : {
+        "filename" : "/workspace/p4/server.p4",
+        "line" : 193,
+        "column" : 8,
+        "source_fragment" : "ServerEgress"
+      },
+      "init_table" : "node_16",
+      "tables" : [
+        {
+          "name" : "tbl_server234",
+          "id" : 7,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 234,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [9],
+          "actions" : ["server234"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server234" : null
+          },
+          "default_entry" : {
+            "action_id" : 9,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_build_packet",
+          "id" : 8,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 240,
+            "column" : 12,
+            "source_fragment" : "build_packet(0x12, meta.seq_to_send, meta.ack_to_send)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [7],
+          "actions" : ["ServerEgress.build_packet"],
+          "base_default_next" : "tbl_server241",
+          "next_tables" : {
+            "ServerEgress.build_packet" : "tbl_server241"
+          },
+          "default_entry" : {
+            "action_id" : 7,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server241",
+          "id" : 9,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 241,
+            "column" : 32,
+            "source_fragment" : "="
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [10],
+          "actions" : ["server241"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server241" : null
+          },
+          "default_entry" : {
+            "action_id" : 10,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_build_packet_0",
+          "id" : 10,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 245,
+            "column" : 12,
+            "source_fragment" : "build_packet(0x11, meta.seq_to_send, meta.ack_to_send)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [8],
+          "actions" : ["ServerEgress.build_packet"],
+          "base_default_next" : "tbl_server246",
+          "next_tables" : {
+            "ServerEgress.build_packet" : "tbl_server246"
+          },
+          "default_entry" : {
+            "action_id" : 8,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server246",
+          "id" : 11,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 246,
+            "column" : 32,
+            "source_fragment" : "="
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [11],
+          "actions" : ["server246"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server246" : null
+          },
+          "default_entry" : {
+            "action_id" : 11,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_server249",
+          "id" : 12,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 249,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(stdmeta)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [12],
+          "actions" : ["server249"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "server249" : null
+          },
+          "default_entry" : {
+            "action_id" : 12,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        }
+      ],
+      "action_profiles" : [],
+      "conditionals" : [
+        {
+          "name" : "node_16",
+          "id" : 5,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 233,
+            "column" : 12,
+            "source_fragment" : "stdmeta.instance_type != 1"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "!=",
+              "left" : {
+                "type" : "field",
+                "value" : ["standard_metadata", "instance_type"]
+              },
+              "right" : {
+                "type" : "hexstr",
+                "value" : "0x00000001"
+              }
+            }
+          },
+          "true_next" : "tbl_server234",
+          "false_next" : "node_18"
+        },
+        {
+          "name" : "node_18",
+          "id" : 6,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 238,
+            "column" : 12,
+            "source_fragment" : "meta.egress_action == ACTION_SEND_SYNACK"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "==",
+              "left" : {
+                "type" : "field",
+                "value" : ["scalars", "metadata_t.egress_action"]
+              },
+              "right" : {
+                "type" : "hexstr",
+                "value" : "0x01"
+              }
+            }
+          },
+          "true_next" : "tbl_build_packet",
+          "false_next" : "node_21"
+        },
+        {
+          "name" : "node_21",
+          "id" : 7,
+          "source_info" : {
+            "filename" : "/workspace/p4/server.p4",
+            "line" : 243,
+            "column" : 17,
+            "source_fragment" : "meta.egress_action == ACTION_SEND_FINACK"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "==",
+              "left" : {
+                "type" : "field",
+                "value" : ["scalars", "metadata_t.egress_action"]
+              },
+              "right" : {
+                "type" : "hexstr",
+                "value" : "0x02"
+              }
+            }
+          },
+          "true_next" : "tbl_build_packet_0",
+          "false_next" : "tbl_server249"
+        }
+      ]
+    }
+  ],
+  "checksums" : [
+    {
+      "name" : "cksum",
+      "id" : 0,
+      "source_info" : {
+        "filename" : "/workspace/p4/server.p4",
+        "line" : 266,
+        "column" : 8,
+        "source_fragment" : "update_checksum( ..."
+      },
+      "target" : ["ipv4", "checksum"],
+      "type" : "generic",
+      "calculation" : "calc",
+      "verify" : false,
+      "update" : true,
+      "if_cond" : {
+        "type" : "expression",
+        "value" : {
+          "op" : "d2b",
+          "left" : null,
+          "right" : {
+            "type" : "field",
+            "value" : ["ipv4", "$valid$"]
+          }
+        }
+      }
+    }
+  ],
+  "force_arith" : [],
+  "extern_instances" : [],
+  "field_aliases" : [
+    [
+      "queueing_metadata.enq_timestamp",
+      ["standard_metadata", "enq_timestamp"]
+    ],
+    [
+      "queueing_metadata.enq_qdepth",
+      ["standard_metadata", "enq_qdepth"]
+    ],
+    [
+      "queueing_metadata.deq_timedelta",
+      ["standard_metadata", "deq_timedelta"]
+    ],
+    [
+      "queueing_metadata.deq_qdepth",
+      ["standard_metadata", "deq_qdepth"]
+    ],
+    [
+      "intrinsic_metadata.ingress_global_timestamp",
+      ["standard_metadata", "ingress_global_timestamp"]
+    ],
+    [
+      "intrinsic_metadata.egress_global_timestamp",
+      ["standard_metadata", "egress_global_timestamp"]
+    ],
+    [
+      "intrinsic_metadata.mcast_grp",
+      ["standard_metadata", "mcast_grp"]
+    ],
+    [
+      "intrinsic_metadata.egress_rid",
+      ["standard_metadata", "egress_rid"]
+    ],
+    [
+      "intrinsic_metadata.priority",
+      ["standard_metadata", "priority"]
+    ]
+  ],
+  "program" : "/workspace/shared/server.p4i",
+  "__meta__" : {
+    "version" : [2, 23],
+    "compiler" : "https://github.com/p4lang/p4c"
+  }
+}
