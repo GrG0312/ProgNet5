@@ -1,0 +1,5 @@
+[20:58:22.660] [bmv2] [I] [thread 32] Starting Thrift server on port 9090
+[20:58:22.661] [bmv2] [I] [thread 32] Thrift server was started
+[20:58:31.941] [bmv2] [I] [thread 41] [CLIENT] Trigger received. Sending SYN (seq=1000). State: IDLE -> SYN_SENT
+[20:58:31.942] [bmv2] [I] [thread 41] [CLIENT] SYN-ACK received (seq=5000, ack=1001). Sending FIN+ACK. State: SYN_SENT -> FIN_SENT
+[20:58:31.944] [bmv2] [I] [thread 41] [CLIENT] FIN-ACK received (seq=5001, ack=1002). Sending final ACK. State: FIN_SENT -> CLOSED
